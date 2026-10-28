@@ -6,9 +6,10 @@ import type {
 
 export interface UploadAssignmentRequest {
   batchId: number;
+  mentorId: number;
   title: string;
   description?: string;
-  deadLine: string;
+  dueDate: string;
   gradePoints: number;
   file: File;
 }
@@ -19,13 +20,14 @@ export async function uploadAssignment(
   const formData = new FormData();
 
   formData.append("BatchId", data.batchId.toString());
+  formData.append("MentorId", data.mentorId.toString());
   formData.append("Title", data.title);
 
   if (data.description) {
     formData.append("Description", data.description);
   }
 
-  formData.append("DeadLine", data.deadLine);
+  formData.append("DueDate", data.dueDate);
   formData.append(
     "GradePoints",
     data.gradePoints.toString(),
@@ -34,7 +36,7 @@ export async function uploadAssignment(
   formData.append("File", data.file);
 
   const response = await api.post<Assignment>(
-    "/Assignment/Upload",
+    "/Assignments/UploadAssignment",
     formData,
   );
 
@@ -43,10 +45,14 @@ export async function uploadAssignment(
 
 export async function getAssignmentById(id: number) {
   const response = await api.get<Assignment>(
-    `/Assignment/${id}`,
+    `/assignments/${id}`,
   );
 
   return response.data;
+}
+
+export function getAssignmentFileUrl(id: number) {
+  return `${import.meta.env.VITE_API_BASE_URL}/Assignments/${id}/file`;
 }
 
 export async function deleteAssignment(id: number) {
@@ -57,8 +63,16 @@ export async function getAllSubmissions(
   assignmentId: number,
 ) {
   const response = await api.get<AssignmentSubmission[]>(
-    `/Assignment/${assignmentId}/Submissions`,
+    `/Assignment/${assignmentId}/AllSubmissions`,
   );
 
   return response.data;
+}
+
+export async function gradeSubmission(submissionId: number, gradePoint: number, isComplete: boolean) {
+  return (await api.put(`/AssignmentSubmissions/${submissionId}/Grade`, {
+    id: submissionId,
+    gradePoint,
+    isComplete,
+  })).data;
 }

@@ -1,5 +1,5 @@
 export interface LectureVideo {
-  id: number;
+  videoId: number;
   batchId: number;
   title: string;
   description?: string;
@@ -10,10 +10,13 @@ export interface LectureVideo {
   duration: string;
   createdAt: string;
   rating: number;
+  queries?: Query[];
 }
 
+import type { Query } from "./query";
+
 export interface LectureNote {
-  id: number;
+  noteId: number;
   batchId: number;
   title: string;
   description?: string;

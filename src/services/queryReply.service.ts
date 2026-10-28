@@ -3,12 +3,14 @@ import type { QueryReply } from "../types/query";
 
 export async function createQueryReply(
   queryId: number,
+  mentorId: number,
   reply: string,
 ) {
   const response = await api.post<QueryReply>(
-    "/QueryReply/Create",
+    "/QueryReply/Reply",
     {
       queryId,
+      mentorId,
       reply,
     },
   );

@@ -1,61 +1,32 @@
 import api from "./api";
-import type { Batch } from "../types/batch";
+import type { Batch, BatchWriteRequest } from "../types/batch";
 import type { Enrollment } from "../types/enrollment";
 
-export interface CreateBatchRequest {
-  batchCode: string;
-  courseId: number;
-  mentorId: number;
-  startDate: string;
-  endDate?: string;
+export async function getAllBatches(): Promise<Batch[]> {
+  const response = await api.get<Omit<Batch, "id">[]>("/Batch/GetAll");
+  return response.data.map(batch => ({ ...batch, id: batch.batchId }));
 }
 
-export async function getAllBatches() {
-  const response = await api.get<Batch[]>(
-    "/batch/GetAllBatches",
-  );
-
-  return response.data;
+export async function getBatchById(id: number): Promise<Batch> {
+  const response = await api.get<Omit<Batch, "id">>(`/Batch/${id}`);
+  return { ...response.data, id: response.data.batchId };
 }
 
-export async function getBatchById(id: number) {
-  const response = await api.get<Batch>(
-    `/batch/GetBatch/${id}`,
-  );
-
-  return response.data;
+export async function createBatch(data: BatchWriteRequest): Promise<void> {
+  await api.post("/batch/CreateBatch", data);
 }
 
-export async function createBatch(
-  data: CreateBatchRequest,
-) {
-  const response = await api.post(
-    "/batch/CreateBatch",
-    data,
-  );
-
-  return response.data;
+export async function updateBatch(id: number, data: Partial<BatchWriteRequest>): Promise<void> {
+  await api.put(`/Batch/Update/${id}`, { batchId: id, ...data });
 }
 
-export async function updateBatch(
-  id: number,
-  data: CreateBatchRequest,
-) {
-  const response = await api.put(
-    `/batch/UpdateBatch/${id}`,
-    data,
-  );
-
-  return response.data;
-}
-
-export async function deleteBatch(id: number) {
-  await api.delete(`/batch/DeleteBatch/${id}`);
+export async function deleteBatch(id: number): Promise<void> {
+  await api.delete(`/Batch/Delete/${id}`);
 }
 
 export async function getBatchEnrollments(id: number) {
   const response = await api.get<Enrollment[]>(
-    `/batch/${id}/Enrollments`,
+    `/Batch/${id}/Enrollments`,
   );
 
   return response.data;

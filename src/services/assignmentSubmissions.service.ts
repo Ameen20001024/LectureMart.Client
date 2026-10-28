@@ -1,51 +1,17 @@
 import api from "./api";
 import type { AssignmentSubmission } from "../types/assignment";
+import { isAllowedDocument } from "../utils/uploadValidation";
 
-export async function uploadSubmission(
-  assignmentId: number,
-  file: File,
-) {
+export async function uploadSubmission(assignmentId: number, studentId: number, file: File): Promise<AssignmentSubmission> {
+  if (!(await isAllowedDocument(file, "submission"))) throw new Error("Upload a valid PDF, DOC, DOCX, or ZIP file (maximum 25 MB).");
   const formData = new FormData();
-
-  formData.append(
-    "AssignmentId",
-    assignmentId.toString(),
-  );
-
+  formData.append("AssignmentId", assignmentId.toString());
+  formData.append("StudentId", studentId.toString());
   formData.append("File", file);
-
-  const response = await api.post<AssignmentSubmission>(
-    "/AssignmentSubmission/Upload",
-    formData,
-  );
-
+  const response = await api.post<AssignmentSubmission>("/AssignmentSubmissions/Upload", formData);
   return response.data;
 }
 
-export async function getSubmissionById(id: number) {
-  const response =
-    await api.get<AssignmentSubmission>(
-      `/AssignmentSubmission/${id}`,
-    );
-
-  return response.data;
-}
-
-export async function deleteSubmission(id: number) {
-  await api.delete(
-    `/AssignmentSubmission/${id}`,
-  );
-}
-
-export async function gradeSubmission(
-  id: number,
-  gradePoints: number,
-) {
-  const response =
-    await api.put<AssignmentSubmission>(
-      `/AssignmentSubmission/${id}/Grade`,
-      { gradePoints },
-    );
-
-  return response.data;
+export async function deleteSubmission(submissionId: number): Promise<void> {
+  await api.delete(`/AssignmentSubmission/Delete/${submissionId}`);
 }

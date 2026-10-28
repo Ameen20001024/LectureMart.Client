@@ -7,87 +7,87 @@ import {
   useState,
   type ReactNode,
 } from "react";
-
-import type { User } from "../types/auth";
+import { getCurrentUser, logoutUser } from "../services/auth.service";
+import type { Role, User } from "../types/auth";
 
 interface AuthContextValue {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
-  logout: () => void;
+  activeProfile: Role | null;
+  login: () => Promise<User>;
+  logout: () => Promise<void>;
+  switchProfile: (profile: Role) => void;
+  refreshUser: () => Promise<User>;
 }
 
-export const AuthContext =
-  createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [activeProfile, setActiveProfile] = useState<Role | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const refreshUser = useCallback(async () => {
+    const currentUser = await getCurrentUser();
+    setUser(currentUser);
+    setActiveProfile((profile) =>
+      (() => {
+        const savedProfile = localStorage.getItem("lectureMartActiveProfile") as Role | null;
+        const selectedProfile = profile ?? savedProfile;
+        return selectedProfile && currentUser.roles.includes(selectedProfile)
+          ? selectedProfile
+          : currentUser.roles[0] ?? null;
+      })(),
+    );
+    localStorage.setItem("lectureMartUser", JSON.stringify(currentUser));
+    return currentUser;
+  }, []);
+
   useEffect(() => {
-    const storedToken = localStorage.getItem("lectureMartToken");
-    const storedUser = localStorage.getItem("lectureMartUser");
-
-    if (storedToken && storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser) as User;
-
-        setToken(storedToken);
-        setUser(parsedUser);
-      } catch {
-        localStorage.removeItem("lectureMartToken");
+    // This hydrates the authenticated session asynchronously from the current-user endpoint.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshUser()
+      .catch(() => {
         localStorage.removeItem("lectureMartUser");
-      }
+        setUser(null);
+        setActiveProfile(null);
+      })
+      .finally(() => setIsLoading(false));
+  }, [refreshUser]);
+
+  const login = useCallback(() => refreshUser(), [refreshUser]);
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutUser();
+    } finally {
+      localStorage.removeItem("lectureMartUser");
+      setUser(null);
+      setActiveProfile(null);
     }
-
-    setIsLoading(false);
   }, []);
 
-  const login = useCallback(
-    (newToken: string, newUser: User) => {
-      localStorage.setItem("lectureMartToken", newToken);
-      localStorage.setItem(
-        "lectureMartUser",
-        JSON.stringify(newUser),
-      );
-
-      setToken(newToken);
-      setUser(newUser);
-    },
-    [],
-  );
-
-  const logout = useCallback(() => {
-    localStorage.removeItem("lectureMartToken");
-    localStorage.removeItem("lectureMartUser");
-
-    setToken(null);
-    setUser(null);
-  }, []);
+  const switchProfile = useCallback((profile: Role) => {
+    if (user?.roles.includes(profile)) {
+      setActiveProfile(profile);
+      localStorage.setItem("lectureMartActiveProfile", profile);
+    }
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      token,
-      isAuthenticated: Boolean(token && user),
+      isAuthenticated: Boolean(user),
       isLoading,
+      activeProfile,
       login,
       logout,
+      switchProfile,
+      refreshUser,
     }),
-    [user, token, isLoading, login, logout],
+    [user, isLoading, activeProfile, login, logout, switchProfile, refreshUser],
   );
 
-
-  return createElement(
-  AuthContext.Provider,
-  { value },
-  children,
-);
+  return createElement(AuthContext.Provider, { value }, children);
 }

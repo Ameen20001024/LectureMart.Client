@@ -1,40 +1,34 @@
 import { BookOpen, Star, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import FallbackImage from "../common/FallbackImage";
 import type { Course } from "../../types/course";
 
 interface CourseCardProps {
   course: Course;
+  enrollmentCount: number;
 }
 
-export default function CourseCard({
-  course,
-}: CourseCardProps) {
+export default function CourseCard({ course, enrollmentCount }: CourseCardProps) {
   return (
     <Link
       to={`/courses/${course.id}`}
       className="group overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-1 hover:shadow-lg"
     >
-      <div className="aspect-video bg-slate-200">
-        {course.thumbnail ? (
-          <img
-            src={course.thumbnail}
-            alt={course.title}
-            className="h-full w-full object-cover transition group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-slate-400">
-            <BookOpen size={42} />
-          </div>
-        )}
+      <div className="aspect-video overflow-hidden bg-slate-100">
+        <FallbackImage
+          src={course.thumbnail}
+          alt={`${course.courseName} course cover`}
+          className="h-full w-full object-cover transition group-hover:scale-105"
+        />
       </div>
 
       <div className="p-5">
-        <p className="text-sm font-medium text-blue-600">
+        {/* <p className="text-sm font-medium text-blue-600">
           {course.mentorName}
-        </p>
+        </p> */}
 
         <h3 className="mt-2 line-clamp-2 text-lg font-bold">
-          {course.title}
+          {course.courseName} ({course.courseCode})
         </h3>
 
         <p className="mt-2 line-clamp-2 text-sm text-slate-500">
@@ -44,12 +38,12 @@ export default function CourseCard({
         <div className="mt-4 flex items-center gap-4 text-xs text-slate-500">
           <span className="flex items-center gap-1">
             <BookOpen size={14} />
-            {course.lectureCount} lectures
+            {course.duration} hours
           </span>
 
           <span className="flex items-center gap-1">
             <Users size={14} />
-            {course.studentCount}
+            {enrollmentCount} Students Already Enrolled.
           </span>
 
           <span className="flex items-center gap-1">

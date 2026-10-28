@@ -9,18 +9,22 @@ interface RoleRouteProps {
 export default function RoleRoute({
   allowedRoles,
 }: RoleRouteProps) {
-  const { user } = useAuth();
+  const { user, activeProfile } = useAuth();
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  const hasAllowedRole = user.role.some((role) =>
+  const hasAllowedRole = user.roles.some((role) =>
     allowedRoles.includes(role)
   );
 
   if (!hasAllowedRole) {
     return <Navigate to="/unauthorized" replace />;
+  }
+
+  if (!activeProfile || !allowedRoles.includes(activeProfile)) {
+    return <Navigate to="/profiles" replace />;
   }
 
   return <Outlet />;

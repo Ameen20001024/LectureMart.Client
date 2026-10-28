@@ -1,11 +1,12 @@
-
 export type Role = "Student" | "Mentor" | "Admin";
 
 export interface User {
   userId: string;
   username: string;
   email: string;
-  role: Role[];
+  roles: Role[];
+  mentorId?: number | null;
+  studentId?: number | null;
 }
 
 export interface LoginRequest {
@@ -23,13 +24,10 @@ export interface LoginResponse {
   userId: string;
   email: string;
   username: string;
-  accessToken: string;
 }
 
 export interface RegisterResponse {
   userId: string;
   username: string;
   email: string;
-  accessToken: string;
 }
-

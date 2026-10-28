@@ -7,9 +7,12 @@ import FileUpload from "../../components/common/FileUpload";
 import {
   uploadLectureVideo,
 } from "../../services/lectureVideo.service";
+import { useAuth } from "../../hooks/useAuth";
+import { isAllowedVideo } from "../../utils/uploadValidation";
 
 export default function LectureVideos() {
   const { batchId } = useParams();
+  const { user } = useAuth();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] =
@@ -26,11 +29,15 @@ export default function LectureVideos() {
   ) {
     event.preventDefault();
 
-    if (!batchId || !file || !title.trim()) {
+    if (!batchId || !user?.mentorId || !file || !title.trim()) {
       toast.error(
         "Title and video are required.",
       );
 
+      return;
+    }
+    if (!(await isAllowedVideo(file))) {
+      toast.error("Upload a valid MP4, MOV, or WEBM video (maximum 500 MB).");
       return;
     }
 
@@ -39,6 +46,7 @@ export default function LectureVideos() {
 
       await uploadLectureVideo({
         batchId: Number(batchId),
+        mentorId: user.mentorId,
         title,
         description,
         video: file,
@@ -110,7 +118,7 @@ export default function LectureVideos() {
 
         <FileUpload
           label="Video"
-          accept="video/*"
+          accept=".mp4,.mov,.webm,video/mp4,video/quicktime,video/webm"
           file={file}
           onChange={setFile}
         />

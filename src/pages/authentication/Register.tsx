@@ -9,11 +9,9 @@ import {
 } from "../../schemas/auth.schema";
 
 import { registerUser } from "../../services/auth.service";
-import { useAuth } from "../../hooks/useAuth";
 
 export default function Register() {
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const {
     register,
@@ -25,20 +23,11 @@ export default function Register() {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      const response = await registerUser(data);
-
-      const user = {
-        userId: response.userId,
-        username: response.username,
-        email: response.email,
-        role: [],
-      };
-
-      login(response.accessToken, user);
+      await registerUser(data);
 
       toast.success("Account created successfully!");
 
-      navigate("/student/dashboard", {
+      navigate("/login", {
         replace: true,
       });
     } catch {

@@ -2,11 +2,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { getRolesFromToken } from "../../utils/jwt";
 import { loginSchema, type LoginFormData } from "../../schemas/auth.schema";
 import { loginUser } from "../../services/auth.service";
 import { useAuth } from "../../hooks/useAuth";
-import type { Role } from "../../types/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,26 +22,25 @@ export default function Login() {
 
   const onSubmit = async (data: LoginFormData) => {
   try {
-    const response = await loginUser(data);
+    await loginUser(data);
 
-    const roles = getRolesFromToken(response.accessToken);
-
-    const user = {
-      userId: response.userId,
-      username: response.username,
-      email: response.email,
-      role: roles,
-    };
-
-    login(response.accessToken, user);
+    const user = await login();
 
     toast.success("Welcome back!");
 
-    const from =
-      location.state?.from?.pathname ||
-      getDashboardPath(roles);
+    const from = location.state?.from?.pathname as string | undefined;
+    const canChooseProfile = user.roles.includes("Student") && user.roles.length > 1;
+    const home = canChooseProfile
+      ? "/profiles"
+      : user.roles.includes("Admin")
+        ? "/admin/dashboard"
+        : "/courses";
 
-    navigate(from, { replace: true });
+    if (canChooseProfile) {
+      navigate("/profiles", { replace: true, state: { from } });
+    } else {
+      navigate(from ?? home, { replace: true });
+    }
   } catch {
     toast.error("Invalid email or password");
   }
@@ -163,14 +160,3 @@ export default function Login() {
   );
 }
 
-function getDashboardPath(role: Role[]): string {
-  if (role.includes("Admin")) {
-    return "/admin/dashboard";
-  }
-
-  if (role.includes("Mentor")) {
-    return "/mentor/dashboard";
-  }
-
-  return "/student/dashboard";
-}

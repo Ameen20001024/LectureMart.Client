@@ -1,199 +1,34 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "react-toastify";
-import {
-  Plus,
-  Search,
-  Trash2,
-  Pencil,
-} from "lucide-react";
-
-import {
-  deleteCourse,
-  getAllCourses,
-} from "../../services/course.service";
-
+import FallbackImage from "../../components/common/FallbackImage";
+import { createCourse, deleteCourse, getAllCourses, updateCourse, type CourseWriteRequest } from "../../services/course.service";
+import { getAllBatches } from "../../services/batch.service";
 import type { Course } from "../../types/course";
+import type { Batch } from "../../types/batch";
+import { Link } from "react-router-dom";
 
+const blank: CourseWriteRequest = { courseCode: "", courseName: "", description: "", category: "", duration: 1, fee: 1 };
 export default function Courses() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [keyword, setKeyword] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  async function loadCourses() {
-    try {
-      setLoading(true);
-
-      const data = await getAllCourses();
-      setCourses(data);
-    } catch {
-      toast.error("Failed to load courses");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadCourses();
-  }, []);
-
-  const filteredCourses = useMemo(() => {
-    const value = keyword
-      .trim()
-      .toLowerCase();
-
-    if (!value) {
-      return courses;
-    }
-
-    return courses.filter(
-      (course) =>
-        course.courseName
-          .toLowerCase()
-          .includes(value) ||
-        course.courseCode
-          .toLowerCase()
-          .includes(value) ||
-        course.description
-          ?.toLowerCase()
-          .includes(value),
-    );
-  }, [courses, keyword]);
-
-  async function handleDelete(id: number) {
-    const confirmed = window.confirm(
-      "Delete this course?",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deleteCourse(id);
-
-      setCourses((current) =>
-        current.filter(
-          (course) => course.id !== id,
-        ),
-      );
-
-      toast.success("Course deleted");
-    } catch {
-      toast.error("Failed to delete course");
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="p-8">
-        Loading courses...
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 p-6 lg:p-8">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Courses
-          </h1>
-
-          <p className="text-slate-500">
-            Manage LectureMart courses.
-          </p>
-        </div>
-
-        <Link
-          to="/admin/courses/create"
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          Create Course
-        </Link>
-      </div>
-
-      <div className="relative">
-        <Search
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-        />
-
-        <input
-          value={keyword}
-          onChange={(event) =>
-            setKeyword(event.target.value)
-          }
-          placeholder="Search courses..."
-          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 outline-none focus:border-blue-500"
-        />
-      </div>
-
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {filteredCourses.map((course) => (
-          <div
-            key={course.id}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <span className="text-xs font-semibold uppercase text-blue-600">
-                  {course.courseCode}
-                </span>
-
-                <h2 className="mt-1 text-lg font-semibold">
-                  {course.courseName}
-                </h2>
-              </div>
-
-              <span className="rounded-full bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700">
-                ★ {course.rating}
-              </span>
-            </div>
-
-            <p className="line-clamp-3 text-sm text-slate-500">
-              {course.description ||
-                "No description available."}
-            </p>
-
-            <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
-              <span>
-                {course.duration} months
-              </span>
-
-              <span>
-                ₹{course.fee}
-              </span>
-            </div>
-
-            <div className="mt-5 flex gap-2">
-              <Link
-                to={`/admin/courses/edit/${course.id}`}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 py-2 text-sm font-medium hover:bg-slate-50"
-              >
-                <Pencil size={16} />
-                Edit
-              </Link>
-
-              <button
-                onClick={() =>
-                  handleDelete(course.id)
-                }
-                className="rounded-lg border border-red-200 px-3 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredCourses.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-slate-500">
-          No courses found.
-        </div>
-      )}
+  const [courses, setCourses] = useState<Course[]>([]), [batches, setBatches] = useState<Batch[]>([]);
+  const [selected, setSelected] = useState<number | null>(null), [search, setSearch] = useState(""), [editing, setEditing] = useState<Course | null | false>(false), [form, setForm] = useState<CourseWriteRequest>(blank), [saving, setSaving] = useState(false);
+  const load = async () => { const [c, b] = await Promise.all([getAllCourses(), getAllBatches()]); setCourses(c); setBatches(b); setSelected(current => current ?? c[0]?.courseId ?? null); };
+  // Data is applied only after both API requests settle.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load().catch(() => toast.error("Could not load course management data")); }, []);
+  const shown = useMemo(() => courses.filter(c => `${c.courseName} ${c.courseCode} ${c.category}`.toLowerCase().includes(search.toLowerCase())), [courses, search]);
+  const current = courses.find(c => c.courseId === selected) ?? shown[0];
+  const related = batches.filter(b => b.courseId === current?.courseId);
+  const start = (course?: Course) => { setEditing(course ?? null); setForm(course ? { courseCode: course.courseCode, courseName: course.courseName, description: course.description ?? "", category: course.category ?? "", duration: course.duration, fee: course.fee } : blank); };
+  const save = async (e: React.FormEvent) => { e.preventDefault(); if (form.duration <= 0 || form.fee <= 0) return toast.error("Duration and fee must be positive"); if (!Number.isInteger(form.duration)) return toast.error("Duration must be a whole number of weeks"); setSaving(true); try { if (editing) await updateCourse(editing.courseId, form); else await createCourse(form); toast.success(editing ? "Course updated" : "Course created"); setEditing(false); await load(); } catch { toast.error("Could not save course"); } finally { setSaving(false); } };
+  const remove = async () => { if (!current || !window.confirm(`Delete ${current.courseName}?`)) return; try { await deleteCourse(current.courseId); toast.success("Course deleted"); setSelected(null); await load(); } catch { toast.error("Course could not be deleted. It may still have batches or enrollments."); } };
+  return <div className="space-y-6">
+    <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-sm font-semibold text-blue-600">Admin workspace</p><h1 className="text-3xl font-bold">Courses</h1><p className="mt-1 text-slate-500">Create and manage the course catalog and its batches.</p></div><button onClick={() => start()} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-semibold text-white"><Plus size={18}/>Create course</button></header>
+    <div className="grid gap-5 xl:grid-cols-[minmax(280px,0.8fr)_minmax(0,1.6fr)]">
+      <section className="rounded-2xl border bg-white p-4"><div className="relative mb-4"><Search className="absolute left-3 top-3 text-slate-400" size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search courses" className="w-full rounded-xl border py-2.5 pl-10 pr-3 outline-blue-500"/></div><div className="space-y-2">{shown.map(course=><button key={course.courseId} onClick={()=>setSelected(course.courseId)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${current?.courseId===course.courseId?"border-blue-400 bg-blue-50":"border-transparent hover:bg-slate-50"}`}><FallbackImage alt="" className="h-14 w-20 rounded-lg object-cover"/><span className="min-w-0"><b className="block truncate">{course.courseName}</b><small className="text-slate-500">{course.courseCode} · {course.category}</small></span></button>)}{!shown.length&&<p className="p-5 text-center text-sm text-slate-500">No courses found.</p>}</div></section>
+      <section className="min-w-0 rounded-2xl border bg-white p-5 md:p-7">{current ? <><div className="grid gap-5 md:grid-cols-[220px_1fr]"><FallbackImage alt={`${current.courseName} course`} className="aspect-video w-full rounded-xl object-cover"/><div><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-blue-600">{current.courseCode} · {current.category}</p><h2 className="mt-1 text-2xl font-bold">{current.courseName}</h2></div><div className="flex gap-2"><button onClick={()=>start(current)} className="rounded-lg border p-2 text-slate-600 hover:bg-slate-50" aria-label="Edit course"><Pencil size={17}/></button><button onClick={remove} className="rounded-lg border border-red-200 p-2 text-red-600 hover:bg-red-50" aria-label="Delete course"><Trash2 size={17}/></button></div></div><p className="mt-3 whitespace-pre-wrap text-slate-600">{current.description || "No description provided."}</p><div className="mt-4 flex flex-wrap gap-2 text-sm"><span className="rounded-full bg-slate-100 px-3 py-1">{current.duration} weeks</span><span className="rounded-full bg-slate-100 px-3 py-1">Fee {current.fee}</span><span className="rounded-full bg-amber-50 px-3 py-1 text-amber-700">★ {current.rating} <small>(read-only)</small></span></div></div></div>
+      <div className="mt-8 border-t pt-5"><div className="mb-3 flex items-center justify-between"><div><h3 className="text-lg font-bold">Batches</h3><p className="text-sm text-slate-500">Open and closed batches for this course.</p></div><div className="flex gap-3"><Link to={`/admin/batches?courseId=${current.courseId}`} className="text-sm font-semibold text-blue-600">Manage batches</Link><Link to={`/admin/batches?courseId=${current.courseId}&create=1`} className="text-sm font-semibold text-blue-600">+ Create batch</Link></div></div>{related.length ? <div className="grid gap-3 md:grid-cols-2">{related.map(batch=><Link key={batch.batchId} to={`/admin/batches/${batch.batchId}`} className="rounded-xl border p-4 hover:border-blue-300"><div className="flex justify-between gap-2"><b>{batch.batchCode}</b><span className={`rounded-full px-2 py-0.5 text-xs ${batch.isOpenForEnrollment?"bg-green-50 text-green-700":"bg-slate-100 text-slate-600"}`}>{batch.isOpenForEnrollment?"Enrollment open":"Enrollment closed"}</span></div><p className="mt-2 text-sm text-slate-500">Starts {new Date(batch.startDate).toLocaleDateString()} · {batch.isCompleted?"Completed":"Active"}</p></Link>)}</div> : <p className="rounded-xl bg-slate-50 p-5 text-sm text-slate-500">No batches yet.</p>}</div></> : <div className="grid min-h-72 place-items-center text-slate-500">Select a course to view its details.</div>}</section>
     </div>
-  );
+    {editing !== false && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4"><form onSubmit={save} className="max-h-[90vh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"><div className="flex justify-between"><div><h2 className="text-xl font-bold">{editing?"Edit course":"Create course"}</h2><p className="text-sm text-slate-500">Course rating is calculated and cannot be edited.</p></div><button type="button" onClick={()=>setEditing(false)}><X/></button></div><div className="grid gap-3 sm:grid-cols-2">{([["Course code","courseCode"],["Course name","courseName"],["Category","category"],["Duration (weeks)","duration"],["Fee","fee"]] as const).map(([label,key])=><label key={key} className="space-y-1 text-sm font-medium">{label}<input required value={form[key]} type={key==="duration"||key==="fee"?"number":"text"} min={key==="duration"||key==="fee"?"0.01":undefined} step={key==="duration"||key==="fee"?"any":undefined} list={key==="category"?"course-categories":undefined} onChange={e=>setForm({...form,[key]:key==="duration"||key==="fee"?Number(e.target.value):e.target.value})} className="w-full rounded-lg border px-3 py-2"/>{key==="category"&&<datalist id="course-categories">{[...new Set(courses.map(c=>c.category).filter(Boolean))].map(x=><option key={x} value={x}/>)}</datalist>}</label>)}<label className="space-y-1 text-sm font-medium sm:col-span-2">Description<textarea value={form.description} rows={4} onChange={e=>setForm({...form,description:e.target.value})} className="w-full rounded-lg border px-3 py-2"/></label></div><div className="flex justify-end gap-2"><button type="button" onClick={()=>setEditing(false)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white">{saving?"Saving…":"Save course"}</button></div></form></div>}
+  </div>;
 }
